@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.guest')
 @section("content")
 	<h1>Lista dei post</h1>
 	<small>Release date: {{ $post->published_at?->format("d/m/Y H:i") }}</small>
