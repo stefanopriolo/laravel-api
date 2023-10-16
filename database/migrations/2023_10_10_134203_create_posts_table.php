@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('posts', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->ilongText('body')->nullable();
+            $table->longText('body')->nullable();
             $table->string('slug')->unique();
             $table->string('image')->nullable();
             $table->boolean('is_published')->default(false);
