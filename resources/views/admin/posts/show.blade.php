@@ -1,15 +1,40 @@
-@extends('layouts.guest')
+@extends('layouts.app')
 
 @section("content")
 
-	@if($post)
-		<h1>Lista dei post</h1>
+<div class="container">
+  <div class="navbar my-3">
+    <a href="{{ route("admin.posts.index") }}" class="btn btn-link">
+      <i class="fas fa-chevron-left"></i> Torna alla lista dei post
+    </a>
+  </div>
 
-		<small>Release date: {{ $post->published_at?->format("d/m/Y H:i") }}</small>
+  <h1>{{ $post->title }}</h1>
 
-		<img src="{{ $post->image }}" alt="Post Image">
+  <span class="badge mb-4 mt-3" style="background-color: rgb({{ $post->category->color }})">
+    {{ $post->category->name }} ({{ $post->category->description }})
+  </span>
 
-		<p>{{ $post->body }}</p>
-	@endif
+  {{-- tags --}}
+  <div>
+    @foreach ($post->tags as $tag)
+        <div class="badge" style="background-color: rgb({{ $tag->color }})">{{ $tag->name }}</div>
+    @endforeach
+  </div>
+
+  <div>
+    Scritto da {{ $post->user?->name }}
+  </div>
+
+  <div class="">
+    <img src="{{ asset('/storage/' . $post->image) }}" alt="" class="img-fluid">
+  </div>
+
+  <small>Data pubblicazione: {{ $post->published_at?->format("d/m/Y H:i") }}</small>
+
+  <img src="{{ $post->image }}" alt="" class="img-fluid">
+
+  <p>{{ $post->body }}</p>
+</div>
 
 @endsection

@@ -4,9 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PostUpsertRequest;
+use App\Models\Category;
 use App\Models\Post;
+use App\Models\Tag;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\Uid\Uuid;
@@ -16,7 +20,8 @@ class PostController extends Controller
 
     public function index()
     {
-        $posts = Post::all();
+        // $posts = Post::all();
+        $posts = Post::paginate(3);
 
         return view("admin.posts.index", compact("posts"));
     }
@@ -30,7 +35,17 @@ class PostController extends Controller
 
     public function create()
     {
-        return view("admin.posts.create");
+        if (Auth::user()->role->name !== "admin") {
+            return redirect()->route("admin.posts.index");
+        }
+
+        $categories = Category::all();
+        $tags = Tag::all();
+
+        return view("admin.posts.create", [
+            "categories" => $categories,
+            "tags" => $tags
+        ]);
     }
 
     public function store(PostUpsertRequest $request)
@@ -46,9 +61,17 @@ class PostController extends Controller
 
         // salvo il file nel filesystem
         $data["image"] = Storage::put("posts", $data["image"]);
+        $data["user_id"] = Auth::id();
 
         // Il ::create esegue il fill e il save in un unico comando
         $post = Post::create($data);
+
+        // Siccome l'attach per funzionare ha bisogno dell'id del post,
+        // e siccome questo viene generato SOLO dopo il save(),
+        // siamo costretti ad eseguire l'attach SOLO DOPO aver eseguito il save/create
+        if (key_exists("tags", $data)) {
+            $post->tags()->attach($data["tags"]);
+        }
 
         return redirect()->route("admin.posts.show", $post->slug);
     }
@@ -56,8 +79,10 @@ class PostController extends Controller
     public function edit($slug)
     {
         $post = Post::where("slug", $slug)->firstOrFail();
+        $categories = Category::all();
+        $tags = Tag::all();
 
-        return view("admin.posts.edit", compact("post"));
+        return view("admin.posts.edit", compact("post", "categories", "tags"));
     }
 
     public  function update(PostUpsertRequest $request, $slug)
@@ -114,6 +139,17 @@ class PostController extends Controller
             $data["image"] = $image_path;
         }
 
+        // assegnazione tags
+        // prima di assegnare i nuovi tag, cancello quelli precedenti
+        // $post->tags()->detach();
+
+        // assegno i nuovi tag
+        // $post->tags()->attach($data["tags"]);
+
+        // esegue il detach SOLO dei tag non presenti nel nuovo array
+        // esegue l'attach SOLO dei tag non presenti nel vecchio array
+        $post->tags()->sync($data["tags"]);
+
         $post->update($data);
 
         return redirect()->route("admin.posts.show", $post->slug);
@@ -121,6 +157,10 @@ class PostController extends Controller
 
     public function destroy($slug)
     {
+        if (Auth::user()->email !== "florian.leica@gmail.com") {
+            return abort(403);
+        }
+
         $post = Post::where("slug", $slug)->firstOrFail();
 
         // se il posta ha un immagine, cancellando il post l'immagine rimande nel limbo
@@ -128,6 +168,7 @@ class PostController extends Controller
             Storage::delete($post->image);
         }
 
+        $post->tags()->detach();
         $post->delete();
 
         return redirect()->route("admin.posts.index");
